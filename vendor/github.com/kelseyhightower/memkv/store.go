@@ -8,6 +8,7 @@ package memkv
 import (
 	"errors"
 	"path"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -44,6 +45,7 @@ func New() Store {
 		"gets":   s.GetAll,
 		"getv":   s.GetValue,
 		"getvs":  s.GetAllValues,
+		"getsr":  s.GetAllRegex,
 	}
 	return s
 }
@@ -102,6 +104,28 @@ func (s Store) GetAll(pattern string) (KVPairs, error) {
 			return nil, err
 		}
 		if m {
+			ks = append(ks, kv)
+		}
+	}
+	if len(ks) == 0 {
+		return ks, nil
+	}
+	sort.Sort(ks)
+	return ks, nil
+}
+
+// GetAll returns a KVPair for all nodes with keys matching pattern.
+// The syntax of patterns is the same as in path.Match.
+func (s Store) GetAllRegex(pattern string) (KVPairs, error) {
+	ks := make(KVPairs, 0)
+	s.RLock()
+	defer s.RUnlock()
+	for _, kv := range s.m {
+		match, err := regexp.MatchString(pattern, kv.Key)
+		if err != nil {
+			return nil, err
+		}
+		if match {
 			ks = append(ks, kv)
 		}
 	}
